@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.log
+*.sqlite3
+*.db
+*.dat
+*.csv
+*.tsv
+*.h5
+*.hdf5
+*.ipynb_checkpoints/
+
+# VS Code
+.vscode/
+
+# Virtual environments
+.env/
+.venv/
+venv/
+ENV/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Others
+*.bak
+*.swp
+*.tmp
+*.old
+*.orig
+*.rej
+
+# Matplotlib
+*.png
+*.pdf
+*.svg
+*.eps
+*.jpg
+*.jpeg
+
+# Test outputs
+htmlcov/
+coverage.xml
+*.cover
+
+# Git
+.git/
