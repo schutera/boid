@@ -1,0 +1,152 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.animation import FuncAnimation
+
+# Minimal parameters
+width, height, depth = 80, 80, 80
+num_boids = 42
+num_flocks = 2
+visual_range = 50
+speed_limit = 3
+margin = 10
+turn_factor = 1.5
+centering_factor = 0.01
+avoid_factor = 0.05
+matching_factor = 0.05
+min_distance = 10
+flock_colors = ["#00c3ff", "#ffffff", "#264653", "#2a9d8f", "#e9c46a", "#f4a261", "#e76f51"]  # Extended color list
+
+class Boid:
+    def __init__(self, flock=1):
+        self.x = np.random.rand() * width
+        self.y = np.random.rand() * height
+        self.z = np.random.rand() * depth
+        self.dx = np.random.rand() * 8 - 4
+        self.dy = np.random.rand() * 8 - 4
+        self.dz = np.random.rand() * 8 - 4
+        self.flock = flock
+        self.history = []
+
+    def position(self):
+        return np.array([self.x, self.y, self.z])
+
+    def velocity(self):
+        return np.array([self.dx, self.dy, self.dz])
+
+boids = []
+for flock_id in range(1, num_flocks + 1):
+    boids.extend([Boid(flock=flock_id) for _ in range(num_boids)])
+
+def distance(b1, b2):
+    return np.sqrt((b1.x - b2.x)**2 + (b1.y - b2.y)**2 + (b1.z - b2.z)**2)
+
+def fly_towards_center(boid):
+    center_x, center_y, center_z, num_neighbors = 0, 0, 0, 0
+    for other in boids:
+        if other.flock == boid.flock and distance(boid, other) < visual_range:
+            center_x += other.x
+            center_y += other.y
+            center_z += other.z
+            num_neighbors += 1
+    if num_neighbors:
+        center_x /= num_neighbors
+        center_y /= num_neighbors
+        center_z /= num_neighbors
+        boid.dx += (center_x - boid.x) * centering_factor
+        boid.dy += (center_y - boid.y) * centering_factor
+        boid.dz += (center_z - boid.z) * centering_factor
+
+def avoid_others(boid):
+    move_x, move_y, move_z = 0, 0, 0
+    for other in boids:
+        if other is not boid and distance(boid, other) < min_distance:
+            move_x += boid.x - other.x
+            move_y += boid.y - other.y
+            move_z += boid.z - other.z
+    boid.dx += move_x * avoid_factor
+    boid.dy += move_y * avoid_factor
+    boid.dz += move_z * avoid_factor
+
+def match_velocity(boid):
+    avg_dx, avg_dy, avg_dz, num = 0, 0, 0, 0
+    for other in boids:
+        if other.flock == boid.flock and distance(boid, other) < visual_range:
+            avg_dx += other.dx
+            avg_dy += other.dy
+            avg_dz += other.dz
+            num += 1
+    if num > 0:
+        avg_dx /= num
+        avg_dy /= num
+        avg_dz /= num
+        boid.dx += (avg_dx - boid.dx) * matching_factor
+        boid.dy += (avg_dy - boid.dy) * matching_factor
+        boid.dz += (avg_dz - boid.dz) * matching_factor
+
+def limit_speed(boid):
+    speed = np.sqrt(boid.dx**2 + boid.dy**2 + boid.dz**2)
+    if speed > speed_limit:
+        boid.dx = (boid.dx / speed) * speed_limit
+        boid.dy = (boid.dy / speed) * speed_limit
+        boid.dz = (boid.dz / speed) * speed_limit
+
+def keep_within_bounds(boid):
+    if boid.x < margin:
+        boid.dx += turn_factor * (margin - boid.x) / margin
+    if boid.x > width - margin:
+        boid.dx -= turn_factor * (boid.x - (width - margin)) / margin
+    if boid.y < margin:
+        boid.dy += turn_factor * (margin - boid.y) / margin
+    if boid.y > height - margin:
+        boid.dy -= turn_factor * (boid.y - (height - margin)) / margin
+    if boid.z < margin:
+        boid.dz += turn_factor * (margin - boid.z) / margin
+    if boid.z > depth - margin:
+        boid.dz -= turn_factor * (boid.z - (depth - margin)) / margin
+
+def update_boids():
+    for boid in boids:
+        fly_towards_center(boid)
+        avoid_others(boid)
+        match_velocity(boid)
+        limit_speed(boid)
+        keep_within_bounds(boid)
+        boid.x += boid.dx
+        boid.y += boid.dy
+        boid.z += boid.dz
+        boid.history.append((boid.x, boid.y, boid.z))
+        if len(boid.history) > 0:
+            boid.history.pop(0)
+
+def animate(frame):
+    update_boids()
+    ax.cla()
+    ax.set_facecolor('black')
+    fig.patch.set_facecolor('black')
+    ax.set_xlim(0, width)
+    ax.set_ylim(0, height)
+    ax.set_zlim(0, depth)
+    ax.grid(False)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_zticks([])
+    ax.set_axis_off()
+    # Draw each flock with original colors
+    for flock_id in range(1, num_flocks + 1):
+        xs = [b.x for b in boids if b.flock == flock_id]
+        ys = [b.y for b in boids if b.flock == flock_id]
+        zs = [b.z for b in boids if b.flock == flock_id]
+        color = flock_colors[(flock_id - 1) % len(flock_colors)]
+        ax.scatter(xs, ys, zs, color=color, label=f"Flock {flock_id}")
+    # Draw traces for each boid
+    for b in boids:
+        if len(b.history) > 1:
+            h = np.array(b.history)
+            color = flock_colors[(b.flock - 1) % len(flock_colors)]
+            ax.plot(h[:,0], h[:,1], h[:,2], color=color, alpha=0.5, linewidth=1)
+
+fig = plt.figure(figsize=(7,7))
+ax = fig.add_subplot(111, projection='3d')
+ani = FuncAnimation(fig, animate, interval=30)
+plt.show()
