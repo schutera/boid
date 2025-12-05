@@ -2,7 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.animation import FuncAnimation
-from PIL import Image
+
+try:
+    from PIL import Image
+except ImportError:  # Pillow is optional unless render_frame is used
+    Image = None
 
 # Minimal parameters
 width, height, depth = 80, 80, 80
@@ -160,6 +164,11 @@ def create_figure(figsize=(7, 7), edge_buffer=0):
 
 
 def render_frame(fig, ax, edge_buffer=0, auto_step=True, resize=None):
+    if Image is None:
+        raise ImportError(
+            "Pillow is required to render frames to images. Install it via "
+            "pip install pillow before calling render_frame()."
+        )
     if auto_step:
         step_simulation()
     draw_scene(ax, fig, edge_buffer=edge_buffer)
@@ -173,8 +182,15 @@ def render_frame(fig, ax, edge_buffer=0, auto_step=True, resize=None):
 def run_interactive(interval=30, figsize=(7, 7)):
     fig = plt.figure(figsize=figsize)
     ax = fig.add_subplot(111, projection='3d')
-    FuncAnimation(fig, animate, fargs=(ax, fig), interval=interval)
+    ani = FuncAnimation(
+        fig,
+        animate,
+        fargs=(ax, fig),
+        interval=interval,
+        cache_frame_data=False,
+    )
     plt.show()
+    return ani
 
 
 if __name__ == "__main__":

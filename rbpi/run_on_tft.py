@@ -1,3 +1,11 @@
+"""
+If not yet done please install the luma library by
+    # git clone https://github.com/rm-hull/luma.examples.git
+    # cd luma.examples
+    # sudo -H pip3 install -e .
+(mind the dot at the end of the pip command)
+"""
+
 import sys
 import time
 from pathlib import Path
@@ -8,67 +16,104 @@ matplotlib.use("Agg")  # render off-screen for TFT output
 from luma.core.interface.serial import spi, noop
 from luma.lcd.device import st7735
 from luma.core.render import canvas
-from PIL import Image
+from PIL import Image, ImageFont
 
-# Ensure local modules are importable when script runs from other directories
 CURRENT_DIR = Path(__file__).resolve().parent
 if str(CURRENT_DIR) not in sys.path:
     sys.path.append(str(CURRENT_DIR))
 
-import boid_minimal as minimal
+import boid_minimal as minimal  # noqa: E402
 
-# SPI and display configuration (adjust GPIO pins or rotation if your panel differs)
-try:
-    from luma.core.lib.lgpio import GPIO
-
-    gpio = GPIO()
-    serial = spi(port=0, device=0, gpio=gpio, gpio_DC=23, gpio_RST=24)
-except (ImportError, RuntimeError) as exc:
-    gpio = None
-    print(
-        "lgpio backend not available; falling back to no-op GPIO.\n"
-        "Install python3-lgpio (sudo apt install python3-lgpio) if your panel "
-        "needs DC/RST control."
-    )
-    if exc:
-        print(exc)
-    serial = spi(port=0, device=0, gpio=noop())
-
-device = st7735(serial, width=128, height=160, rotate=0)
-
-# Optional: show a splash message before starting the simulation
-with canvas(device) as draw:
-    draw.rectangle(device.bounding_box, outline="white", fill="black")
-    draw.text((10, 70), "Boids starting", fill="white")
-
-# Create the matplotlib figure used for generating frames
-# A smaller figsize speeds up rendering; edge_buffer keeps boids away from the borders
-FIGSIZE = (2, 2)
+FONT_PATH = Path("/home/luma.examples/examples/fonts/ChiKareGo.ttf")
+DEFAULT_FONT = ImageFont.load_default()
+FIGSIZE = (2.0, 1.6)  # approximately matches 160x128 aspect ratio
 EDGE_BUFFER = 5
-
-fig, ax = minimal.create_figure(figsize=FIGSIZE, edge_buffer=EDGE_BUFFER)
-
 FRAME_DELAY = 0.05  # seconds between updates (~20 FPS)
 
-try:
-    while True:
-        frame = minimal.render_frame(
-            fig,
-            ax,
-            edge_buffer=EDGE_BUFFER,
-            auto_step=True,
-            resize=(device.width, device.height),
+
+def load_font(size: int) -> ImageFont.ImageFont:
+    try:
+        return ImageFont.truetype(str(FONT_PATH), size)
+    except (OSError, IOError):
+        return DEFAULT_FONT
+
+
+def initialize_display():
+    """Initialise the SPI TFT device, preferring the lgpio backend."""
+    gpio = None
+    try:
+        from luma.core.lib.lgpio import GPIO  # type: ignore
+
+        gpio = GPIO()
+        serial = spi(port=0, device=0, cs_high=True, gpio=gpio, gpio_DC=23, gpio_RST=24)
+    except (ImportError, RuntimeError) as exc:
+        print(
+            "lgpio backend not available; falling back to no-op GPIO.\n"
+            "Install python3-lgpio (sudo apt install python3-lgpio) if your panel "
+            "needs DC/RST control."
         )
-        # Ensure image matches the panel's expected color mode
-        device.display(frame.convert("RGB"))
-        time.sleep(FRAME_DELAY)
-except KeyboardInterrupt:
+        print(exc)
+        serial = spi(port=0, device=0, cs_high=True, gpio=noop())
+    device = st7735(
+        serial,
+        rotate=0,
+        width=160,
+        height=128,
+        h_offset=0,
+        v_offset=0,
+        bgr=False,
+    )
+    return device, gpio
+
+
+def show_text(device, headline: str, subline: str = ""):
     with canvas(device) as draw:
         draw.rectangle(device.bounding_box, outline="white", fill="black")
-        draw.text((20, 70), "Stopped", fill="white")
-finally:
-    if 'gpio' in locals() and gpio is not None:
+        draw.text((10, 40), headline, font=load_font(18), fill="red")
+        if subline:
+            draw.text((10, 70), subline, font=load_font(14), fill="white")
+
+
+def run_boids(device):
+    fig, ax = minimal.create_figure(figsize=FIGSIZE, edge_buffer=EDGE_BUFFER)
+    print("[Press CTRL + C to end the script!]")
+    try:
+        while True:
+            frame = minimal.render_frame(
+                fig,
+                ax,
+                edge_buffer=EDGE_BUFFER,
+                auto_step=True,
+            )
+            frame = frame.resize((device.width, device.height), Image.LANCZOS)
+            device.display(frame.convert("RGB"))
+            time.sleep(FRAME_DELAY)
+    except KeyboardInterrupt:
+        show_text(device, "Stopped", "CTRL + C detected")
+        raise
+
+
+def main():
+    device, gpio = initialize_display()
+    show_text(device, "Boid running!", "Initialising simulation")
+    time.sleep(1.0)
+
+    try:
+        run_boids(device)
+    except KeyboardInterrupt:
+        pass
+    finally:
         try:
-            gpio.close()
+            device.clear()
+            device.show()
         except Exception:
             pass
+        if gpio is not None:
+            try:
+                gpio.close()
+            except Exception:
+                pass
+
+
+if __name__ == "__main__":
+    main()
