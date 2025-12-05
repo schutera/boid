@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.animation import FuncAnimation
+from PIL import Image
 
 # Minimal parameters
 width, height, depth = 80, 80, 80
@@ -105,7 +106,7 @@ def keep_within_bounds(boid):
     if boid.z > depth - margin:
         boid.dz -= turn_factor * (boid.z - (depth - margin)) / margin
 
-def update_boids():
+def step_simulation():
     for boid in boids:
         fly_towards_center(boid)
         avoid_others(boid)
@@ -119,14 +120,14 @@ def update_boids():
         if len(boid.history) > 0:
             boid.history.pop(0)
 
-def animate(frame):
-    update_boids()
+def draw_scene(ax, fig=None, edge_buffer=0):
     ax.cla()
     ax.set_facecolor('black')
-    fig.patch.set_facecolor('black')
-    ax.set_xlim(0, width)
-    ax.set_ylim(0, height)
-    ax.set_zlim(0, depth)
+    if fig is not None:
+        fig.patch.set_facecolor('black')
+    ax.set_xlim(0 - edge_buffer, width + edge_buffer)
+    ax.set_ylim(0 - edge_buffer, height + edge_buffer)
+    ax.set_zlim(0 - edge_buffer, depth + edge_buffer)
     ax.grid(False)
     ax.set_xticks([])
     ax.set_yticks([])
@@ -146,7 +147,35 @@ def animate(frame):
             color = flock_colors[(b.flock - 1) % len(flock_colors)]
             ax.plot(h[:,0], h[:,1], h[:,2], color=color, alpha=0.5, linewidth=1)
 
-fig = plt.figure(figsize=(7,7))
-ax = fig.add_subplot(111, projection='3d')
-ani = FuncAnimation(fig, animate, interval=30)
-plt.show()
+
+def animate(frame, ax, fig):
+    step_simulation()
+    draw_scene(ax, fig)
+
+def create_figure(figsize=(7, 7), edge_buffer=0):
+    fig = plt.figure(figsize=figsize)
+    ax = fig.add_subplot(111, projection='3d')
+    draw_scene(ax, fig, edge_buffer=edge_buffer)
+    return fig, ax
+
+
+def render_frame(fig, ax, edge_buffer=0, auto_step=True, resize=None):
+    if auto_step:
+        step_simulation()
+    draw_scene(ax, fig, edge_buffer=edge_buffer)
+    fig.canvas.draw()
+    width, height = fig.canvas.get_width_height()
+    image = Image.frombytes('RGB', (width, height), fig.canvas.tostring_rgb())
+    if resize is not None:
+        image = image.resize(resize, Image.LANCZOS)
+    return image
+
+def run_interactive(interval=30, figsize=(7, 7)):
+    fig = plt.figure(figsize=figsize)
+    ax = fig.add_subplot(111, projection='3d')
+    FuncAnimation(fig, animate, fargs=(ax, fig), interval=interval)
+    plt.show()
+
+
+if __name__ == "__main__":
+    run_interactive()
