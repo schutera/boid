@@ -6,6 +6,7 @@ If not yet done please install the luma library by
 (mind the dot at the end of the pip command)
 """
 
+import importlib
 import os
 import sys
 import time
@@ -36,6 +37,23 @@ EDGE_BUFFER = 5
 FRAME_DELAY = 0.05  # seconds between updates (~20 FPS)
 
 
+def _resolve_lgpio_gpio():
+    """Try to locate the lgpio helper class exposed by luma.core."""
+    module_candidates = (
+        "luma.core.lib.lgpio",
+        "luma.core._lib.lgpio",
+    )
+    for module_name in module_candidates:
+        spec = importlib.util.find_spec(module_name)
+        if spec is None:
+            continue
+        module = importlib.import_module(module_name)
+        gpio_cls = getattr(module, "GPIO", None)
+        if gpio_cls is not None:
+            return gpio_cls
+    raise ImportError("lgpio GPIO helper not present in the installed luma.core package")
+
+
 def load_font(size: int) -> ImageFont.ImageFont:
     try:
         return ImageFont.truetype(str(FONT_PATH), size)
@@ -47,8 +65,7 @@ def initialize_display():
     """Initialise the SPI TFT device, preferring the lgpio backend."""
     gpio = None
     try:
-        from luma.core.lib.lgpio import GPIO  # type: ignore
-
+        GPIO = _resolve_lgpio_gpio()
         gpio = GPIO()
         serial = spi(port=0, device=0, cs_high=True, gpio=gpio, gpio_DC=23, gpio_RST=24)
     except (ImportError, RuntimeError) as exc:

@@ -1,4 +1,22 @@
+import importlib
 import os
+
+
+def _resolve_lgpio_gpio():
+    """Try the known module paths that expose an lgpio-compatible GPIO class."""
+    module_candidates = (
+        "luma.core.lib.lgpio",
+        "luma.core._lib.lgpio",
+    )
+    for module_name in module_candidates:
+        spec = importlib.util.find_spec(module_name)
+        if spec is None:
+            continue
+        module = importlib.import_module(module_name)
+        gpio_cls = getattr(module, "GPIO", None)
+        if gpio_cls is not None:
+            return gpio_cls
+    raise ImportError("lgpio GPIO helper not present in the installed luma.core package")
 
 # Ensure luma picks the lgpio backend first to avoid RPi.GPIO imports
 os.environ.setdefault("LUMA_GPIO_INTERFACE", "lgpio")
@@ -9,8 +27,7 @@ from luma.lcd.device import st7735
 from luma.core.render import canvas
 
 try:
-    from luma.core.lib.lgpio import GPIO  # type: ignore
-
+    GPIO = _resolve_lgpio_gpio()
     gpio = GPIO()
     serial = spi(port=0, device=0, gpio=gpio, gpio_DC=23, gpio_RST=24)
 except (ImportError, RuntimeError) as exc:
