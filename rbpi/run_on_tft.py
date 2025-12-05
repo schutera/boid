@@ -8,6 +8,7 @@ matplotlib.use("Agg")  # render off-screen for TFT output
 from luma.core.interface.serial import spi
 from luma.lcd.device import st7735
 from luma.core.render import canvas
+from luma.core.lib.gpio import GPIO
 from PIL import Image
 
 # Ensure local modules are importable when script runs from other directories
@@ -18,7 +19,8 @@ if str(CURRENT_DIR) not in sys.path:
 import boid_minimal as minimal
 
 # SPI and display configuration (adjust GPIO pins or rotation if your panel differs)
-serial = spi(port=0, device=0, gpio_DC=23, gpio_RST=24)
+gpio = GPIO(chip="/dev/gpiochip0")
+serial = spi(port=0, device=0, gpio=gpio, gpio_DC=23, gpio_RST=24)
 device = st7735(serial, width=128, height=160, rotate=0)
 
 # Optional: show a splash message before starting the simulation
@@ -51,4 +53,6 @@ except KeyboardInterrupt:
     with canvas(device) as draw:
         draw.rectangle(device.bounding_box, outline="white", fill="black")
         draw.text((20, 70), "Stopped", fill="white")
+finally:
+    gpio.close()
 ```
