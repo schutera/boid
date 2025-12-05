@@ -1,3 +1,9 @@
+import os
+
+# Ensure luma picks the lgpio backend first to avoid RPi.GPIO imports
+os.environ.setdefault("LUMA_GPIO_INTERFACE", "lgpio")
+os.environ.setdefault("LUMA_GPIO_CHIP", "/dev/gpiochip0")
+
 from luma.core.interface.serial import spi, noop
 from luma.lcd.device import st7735
 from luma.core.render import canvas
@@ -14,7 +20,7 @@ except (ImportError, RuntimeError) as exc:
         "Install python3-lgpio (sudo apt install python3-lgpio) if your panel "
         "needs those lines."
     )
-    print(exc)
+    print(f"Details: {exc}")
     serial = spi(port=0, device=0, gpio=noop())
 
 device = st7735(serial, width=128, height=160)
