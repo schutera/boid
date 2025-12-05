@@ -15,6 +15,8 @@ try:
     serial = spi(port=0, device=0, gpio=gpio, gpio_DC=23, gpio_RST=24)
 except (ImportError, RuntimeError) as exc:
     gpio = None
+    # Force luma to skip lgpio/RPi-specific handlers when we cannot load lgpio.
+    os.environ["LUMA_GPIO_INTERFACE"] = "noop"
     print(
         "lgpio backend not available; continuing without explicit DC/RST control.\n"
         "Install python3-lgpio (sudo apt install python3-lgpio) if your panel "

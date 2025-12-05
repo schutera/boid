@@ -6,12 +6,17 @@ If not yet done please install the luma library by
 (mind the dot at the end of the pip command)
 """
 
+import os
 import sys
 import time
 from pathlib import Path
 
 import matplotlib
 matplotlib.use("Agg")  # render off-screen for TFT output
+
+# Prefer the lgpio backend by default to avoid RPi.GPIO on Ubuntu.
+os.environ.setdefault("LUMA_GPIO_INTERFACE", "lgpio")
+os.environ.setdefault("LUMA_GPIO_CHIP", "/dev/gpiochip0")
 
 from luma.core.interface.serial import spi, noop
 from luma.lcd.device import st7735
@@ -53,6 +58,7 @@ def initialize_display():
             "needs DC/RST control."
         )
         print(exc)
+        os.environ["LUMA_GPIO_INTERFACE"] = "noop"
         serial = spi(port=0, device=0, cs_high=True, gpio=noop())
     device = st7735(
         serial,
