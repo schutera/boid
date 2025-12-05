@@ -6,18 +6,12 @@ If not yet done please install the luma library by
 (mind the dot at the end of the pip command)
 """
 
-import importlib
-import os
 import sys
 import time
 from pathlib import Path
 
 import matplotlib
 matplotlib.use("Agg")  # render off-screen for TFT output
-
-# Prefer the lgpio backend by default to avoid RPi.GPIO on Ubuntu.
-os.environ.setdefault("LUMA_GPIO_INTERFACE", "lgpio")
-os.environ.setdefault("LUMA_GPIO_CHIP", "/dev/gpiochip0")
 
 from luma.core.interface.serial import spi, noop
 from luma.lcd.device import st7735
@@ -36,22 +30,15 @@ FIGSIZE = (2.0, 1.6)  # approximately matches 160x128 aspect ratio
 EDGE_BUFFER = 5
 FRAME_DELAY = 0.05  # seconds between updates (~20 FPS)
 
-
-def _resolve_lgpio_gpio():
-    """Try to locate the lgpio helper class exposed by luma.core."""
-    module_candidates = (
-        "luma.core.lib.lgpio",
-        "luma.core._lib.lgpio",
-    )
-    for module_name in module_candidates:
-        spec = importlib.util.find_spec(module_name)
-        if spec is None:
-            continue
-        module = importlib.import_module(module_name)
-        gpio_cls = getattr(module, "GPIO", None)
-        if gpio_cls is not None:
-            return gpio_cls
-    raise ImportError("lgpio GPIO helper not present in the installed luma.core package")
+def _init_gpio_backend():
+    """Load a GPIO backend compatible with the RPi.GPIO API."""
+    # Tip: if lgpio keeps failing, running 'python3 -m pip install rpi-lgpio' rescued this setup.
+    try:
+        import RPi.GPIO as GPIO
+        GPIO.setmode(GPIO.BCM)
+        return GPIO, None
+    except (ImportError, RuntimeError) as exc:
+        return None, exc
 
 
 def load_font(size: int) -> ImageFont.ImageFont:
@@ -62,20 +49,19 @@ def load_font(size: int) -> ImageFont.ImageFont:
 
 
 def initialize_display():
-    """Initialise the SPI TFT device, preferring the lgpio backend."""
-    gpio = None
-    try:
-        GPIO = _resolve_lgpio_gpio()
-        gpio = GPIO()
-        serial = spi(port=0, device=0, cs_high=True, gpio=gpio, gpio_DC=23, gpio_RST=24)
-    except (ImportError, RuntimeError) as exc:
+    """Initialise the SPI TFT device, preferring a GPIO backend when available."""
+    gpio_backend, gpio_error = _init_gpio_backend()
+
+    if gpio_backend is not None:
+        serial = spi(port=0, device=0, cs_high=True, gpio=gpio_backend, gpio_DC=23, gpio_RST=24)
+    else:
         print(
-            "lgpio backend not available; falling back to no-op GPIO.\n"
-            "Install python3-lgpio (sudo apt install python3-lgpio) if your panel "
+            "GPIO backend not available; falling back to no-op GPIO.\n"
+            "Install rpi-lgpio (pip install rpi-lgpio) or python3-lgpio if your panel "
             "needs DC/RST control."
         )
-        print(exc)
-        os.environ["LUMA_GPIO_INTERFACE"] = "noop"
+        if gpio_error is not None:
+            print(gpio_error)
         serial = spi(port=0, device=0, cs_high=True, gpio=noop())
     device = st7735(
         serial,
@@ -86,7 +72,7 @@ def initialize_display():
         v_offset=0,
         bgr=False,
     )
-    return device, gpio
+    return device, gpio_backend
 
 
 def show_text(device, headline: str, subline: str = ""):
@@ -117,7 +103,7 @@ def run_boids(device):
 
 
 def main():
-    device, gpio = initialize_display()
+    device, gpio_backend = initialize_display()
     show_text(device, "Boid running!", "Initialising simulation")
     time.sleep(1.0)
 
@@ -131,9 +117,9 @@ def main():
             device.show()
         except Exception:
             pass
-        if gpio is not None:
+        if gpio_backend is not None:
             try:
-                gpio.close()
+                gpio_backend.cleanup()
             except Exception:
                 pass
 
