@@ -5,10 +5,9 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")  # render off-screen for TFT output
 
-from luma.core.interface.serial import spi
+from luma.core.interface.serial import spi, noop
 from luma.lcd.device import st7735
 from luma.core.render import canvas
-from luma.core.lib.gpio import GPIO
 from PIL import Image
 
 # Ensure local modules are importable when script runs from other directories
@@ -19,8 +18,22 @@ if str(CURRENT_DIR) not in sys.path:
 import boid_minimal as minimal
 
 # SPI and display configuration (adjust GPIO pins or rotation if your panel differs)
-gpio = GPIO(chip="/dev/gpiochip0")
-serial = spi(port=0, device=0, gpio=gpio, gpio_DC=23, gpio_RST=24)
+try:
+    from luma.core.lib.lgpio import GPIO
+
+    gpio = GPIO()
+    serial = spi(port=0, device=0, gpio=gpio, gpio_DC=23, gpio_RST=24)
+except (ImportError, RuntimeError) as exc:
+    gpio = None
+    print(
+        "lgpio backend not available; falling back to no-op GPIO.\n"
+        "Install python3-lgpio (sudo apt install python3-lgpio) if your panel "
+        "needs DC/RST control."
+    )
+    if exc:
+        print(exc)
+    serial = spi(port=0, device=0, gpio=noop())
+
 device = st7735(serial, width=128, height=160, rotate=0)
 
 # Optional: show a splash message before starting the simulation
@@ -54,5 +67,8 @@ except KeyboardInterrupt:
         draw.rectangle(device.bounding_box, outline="white", fill="black")
         draw.text((20, 70), "Stopped", fill="white")
 finally:
-    gpio.close()
-```
+    if 'gpio' in locals() and gpio is not None:
+        try:
+            gpio.close()
+        except Exception:
+            pass
