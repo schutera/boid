@@ -10,15 +10,15 @@ except ImportError:  # Pillow is optional unless render_frame is used
 
 # Minimal parameters
 width, height, depth = 80, 80, 80
-num_boids = 24
+num_boids = 12
 num_flocks = 2
-visual_range = 50
-speed_limit = 3
+visual_range = 35
+speed_limit = 2.2
 margin = 10
 turn_factor = 1.5
 centering_factor = 0.01
-avoid_factor = 0.05
-matching_factor = 0.05
+avoid_factor = 0.04
+matching_factor = 0.04
 min_distance = 10
 flock_colors = ["#e9c46a", "#e76f51"]  # Extended color list
 # flock_colors = ["#00c3ff", "#ffffff", "#264653", "#2a9d8f", "#e9c46a", "#f4a261", "#e76f51"]  # Extended color list
@@ -146,7 +146,7 @@ def draw_scene(ax, fig=None, edge_buffer=0):
         ys = [b.y for b in boids if b.flock == flock_id]
         zs = [b.z for b in boids if b.flock == flock_id]
         color = flock_colors[(flock_id - 1) % len(flock_colors)]
-        ax.scatter(xs, ys, zs, color=color, label=f"Flock {flock_id}", s=15)
+        ax.scatter(xs, ys, zs, color=color, label=f"Flock {flock_id}", s=5)
     # Draw traces for each boid
     for b in boids:
         if len(b.history) > 1:
