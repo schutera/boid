@@ -12,8 +12,8 @@ except ImportError:  # Pillow is optional unless render_frame is used
 width, height, depth = 80, 80, 80
 num_boids = 24
 num_flocks = 1
-visual_range = 48
-speed_limit = 4.8
+visual_range = 10
+speed_limit = 8.8
 margin = 10
 turn_factor = 1.5
 centering_factor = 0.01
@@ -21,7 +21,7 @@ avoid_factor = 0.055
 matching_factor = 0.06
 min_distance = 13
 flock_colors = ["#ffffff", "#00c3ff", "#264653", "#2a9d8f", "#e9c46a", "#f4a261", "#e76f51"]  # Extended color list
-jitter_strength = 0.42
+jitter_strength = 0.35
 
 
 
