@@ -33,7 +33,8 @@ FRAME_DELAY = 0.05  # seconds between updates (~20 FPS)
 # Physical display dimensions (in millimetres) and the active window we want to occupy.
 DEVICE_WIDTH_MM = 32.0
 DEVICE_HEIGHT_MM = 38.0
-ACTIVE_WINDOW_MM = 24.0
+ACTIVE_WIDTH_MM = 24.0
+ACTIVE_HEIGHT_MM = 24.0
 
 def _init_gpio_backend():
     """Load a GPIO backend compatible with the RPi.GPIO API."""
@@ -70,7 +71,7 @@ def initialize_display():
         serial = spi(port=0, device=0, cs_high=True, gpio=noop())
     device = st7735(
         serial,
-        rotate=0,
+        rotate=1,
         width=160,
         height=128,
         h_offset=0,
@@ -89,8 +90,8 @@ def show_text(device, headline: str, subline: str = ""):
 
 
 def run_boids(device):
-    active_width_px = int(round(device.width * ACTIVE_WINDOW_MM / DEVICE_WIDTH_MM))
-    active_height_px = int(round(device.height * ACTIVE_WINDOW_MM / DEVICE_HEIGHT_MM))
+    active_width_px = int(round(device.width * ACTIVE_WIDTH_MM / DEVICE_WIDTH_MM))
+    active_height_px = int(round(device.height * ACTIVE_HEIGHT_MM / DEVICE_HEIGHT_MM))
     active_width_px = max(1, min(device.width, active_width_px))
     active_height_px = max(1, min(device.height, active_height_px))
 
