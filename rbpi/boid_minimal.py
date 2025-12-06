@@ -12,16 +12,16 @@ except ImportError:  # Pillow is optional unless render_frame is used
 width, height, depth = 80, 80, 80
 num_boids = 18
 num_flocks = 1
-visual_range = 32
-speed_limit = 5.0
+visual_range = 36  # Slightly increased to encourage more interaction
+speed_limit = 4.0  # Allow faster movement
 margin = 10
-turn_factor = 1.5
-centering_factor = 0.01
-avoid_factor = 0.05
-matching_factor = 0.08
-min_distance = 11
-flock_colors = ["#ffffff", "#00c3ff", "#264653", "#2a9d8f", "#e9c46a", "#f4a261", "#e76f51"]  # Extended color list
-jitter_strength = 0.2
+turn_factor = 1.0  # Stronger turning at boundaries
+centering_factor = 0.02  # Stronger pull towards center
+avoid_factor = 0.12  # Stronger avoidance
+matching_factor = 0.12  # More velocity matching
+min_distance = 10  # Slightly reduced to allow closer flying
+flock_colors = ["#ffffff", "#00c3ff", "#264653", "#2a9d8f", "#e9c46a", "#f4a261", "#e76f51"]
+jitter_strength = 0.5  # More random movement for liveliness
 
 
 
