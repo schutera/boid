@@ -132,9 +132,11 @@ def draw_scene(ax, fig=None, edge_buffer=0):
     ax.set_facecolor('black')
     if fig is not None:
         fig.patch.set_facecolor('black')
+        fig.subplots_adjust(0, 0, 1, 1)
     ax.set_xlim(0 - edge_buffer, width + edge_buffer)
     ax.set_ylim(0 - edge_buffer, height + edge_buffer)
     ax.set_zlim(0 - edge_buffer, depth + edge_buffer)
+    ax.margins(0)
     ax.grid(False)
     ax.set_xticks([])
     ax.set_yticks([])
@@ -157,6 +159,11 @@ def animate(frame, ax, fig):
 def create_figure(figsize=(7, 7), edge_buffer=0):
     fig = plt.figure(figsize=figsize)
     ax = fig.add_subplot(111, projection='3d')
+    ax.set_position([0, 0, 1, 1])
+    try:
+        ax.set_box_aspect((width, height, depth))
+    except AttributeError:
+        pass
     draw_scene(ax, fig, edge_buffer=edge_buffer)
     return fig, ax
 
