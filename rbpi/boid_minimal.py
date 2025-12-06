@@ -10,7 +10,7 @@ except ImportError:  # Pillow is optional unless render_frame is used
 
 # Minimal parameters
 width, height, depth = 80, 80, 80
-num_boids = 42
+num_boids = 18
 num_flocks = 2
 visual_range = 50
 speed_limit = 3
@@ -31,7 +31,6 @@ class Boid:
         self.dy = np.random.rand() * 8 - 4
         self.dz = np.random.rand() * 8 - 4
         self.flock = flock
-        self.history = []
 
     def position(self):
         return np.array([self.x, self.y, self.z])
@@ -120,36 +119,49 @@ def step_simulation():
         boid.x += boid.dx
         boid.y += boid.dy
         boid.z += boid.dz
-        boid.history.append((boid.x, boid.y, boid.z))
-        if len(boid.history) > 0:
-            boid.history.pop(0)
 
-def draw_scene(ax, fig=None, edge_buffer=0):
-    ax.cla()
+
+def _configure_axes(ax, fig, edge_buffer):
+    desired = (edge_buffer, width, height, depth)
+    if getattr(ax, "_boid_axis_config", None) == desired:
+        return
+    ax.clear()
     ax.set_facecolor('black')
     if fig is not None:
         fig.patch.set_facecolor('black')
-    ax.set_xlim(0 - edge_buffer, width + edge_buffer)
-    ax.set_ylim(0 - edge_buffer, height + edge_buffer)
-    ax.set_zlim(0 - edge_buffer, depth + edge_buffer)
-    ax.grid(False)
-    ax.set_xticks([])
-    ax.set_yticks([])
-    ax.set_zticks([])
-    ax.set_axis_off()
-    # Draw each flock with original colors
+    ax.set_xlim(-edge_buffer, width + edge_buffer)
+    ax.set_ylim(-edge_buffer, height + edge_buffer)
+    ax.set_zlim(-edge_buffer, depth + edge_buffer)
+    ax._boid_axis_config = desired
+    ax._boid_artists = None  # force rebuild when limits change
+
+
+def _ensure_artists(ax):
+    artists = getattr(ax, "_boid_artists", None)
+    if artists is not None:
+        return artists
+    scatter_map = {}
     for flock_id in range(1, num_flocks + 1):
-        xs = [b.x for b in boids if b.flock == flock_id]
-        ys = [b.y for b in boids if b.flock == flock_id]
-        zs = [b.z for b in boids if b.flock == flock_id]
         color = flock_colors[(flock_id - 1) % len(flock_colors)]
-        ax.scatter(xs, ys, zs, color=color, label=f"Flock {flock_id}")
-    # Draw traces for each boid
-    for b in boids:
-        if len(b.history) > 1:
-            h = np.array(b.history)
-            color = flock_colors[(b.flock - 1) % len(flock_colors)]
-            ax.plot(h[:,0], h[:,1], h[:,2], color=color, alpha=0.5, linewidth=1)
+        scatter_map[flock_id] = ax.scatter([], [], [], color=color, s=12)
+    artists = {"scatter": scatter_map}
+    ax._boid_artists = artists
+    return artists
+
+
+def draw_scene(ax, fig=None, edge_buffer=0):
+    _configure_axes(ax, fig, edge_buffer)
+    artists = _ensure_artists(ax)
+    for flock_id in range(1, num_flocks + 1):
+        members = [b for b in boids if b.flock == flock_id]
+        if members:
+            xs = [b.x for b in members]
+            ys = [b.y for b in members]
+            zs = [b.z for b in members]
+        else:
+            xs = ys = zs = []
+        scatter = artists["scatter"][flock_id]
+        scatter._offsets3d = (xs, ys, zs)
 
 
 def animate(frame, ax, fig):
