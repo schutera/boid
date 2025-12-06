@@ -10,7 +10,7 @@ except ImportError:  # Pillow is optional unless render_frame is used
 
 # Minimal parameters
 width, height, depth = 80, 80, 80
-num_boids = 42
+num_boids = 24
 num_flocks = 1
 visual_range = 48
 speed_limit = 3.8
@@ -146,7 +146,7 @@ def draw_scene(ax, fig=None, edge_buffer=0):
         ys = [b.y for b in boids if b.flock == flock_id]
         zs = [b.z for b in boids if b.flock == flock_id]
         color = flock_colors[(flock_id - 1) % len(flock_colors)]
-        ax.scatter(xs, ys, zs, color=color, label=f"Flock {flock_id}", s=1)
+        ax.scatter(xs, ys, zs, color=color, label=f"Flock {flock_id}", s=3)
     # Draw traces for each boid
 
 
