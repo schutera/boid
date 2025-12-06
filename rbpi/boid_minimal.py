@@ -174,7 +174,13 @@ def render_frame(fig, ax, edge_buffer=0, auto_step=True, resize=None):
     draw_scene(ax, fig, edge_buffer=edge_buffer)
     fig.canvas.draw()
     width, height = fig.canvas.get_width_height()
-    image = Image.frombytes('RGB', (width, height), fig.canvas.tostring_rgb())
+    try:
+        rgb_bytes = fig.canvas.tostring_rgb()
+        image = Image.frombytes('RGB', (width, height), rgb_bytes)
+    except AttributeError:
+        # Matplotlib >=3.9 removed tostring_rgb; buffer_rgba() is the supported path.
+        rgba = fig.canvas.buffer_rgba()
+        image = Image.frombuffer('RGBA', (width, height), rgba, 'raw', 'RGBA', 0, 1).convert('RGB')
     if resize is not None:
         image = image.resize(resize, Image.LANCZOS)
     return image
