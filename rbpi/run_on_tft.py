@@ -26,15 +26,9 @@ import boid_minimal as minimal  # noqa: E402
 
 FONT_PATH = Path("/home/luma.examples/examples/fonts/ChiKareGo.ttf")
 DEFAULT_FONT = ImageFont.load_default()
-FIGURE_WIDTH_IN = 2.0  # base width for matplotlib figure sizing
+FIGSIZE = (2.0, 1.6)  # approximately matches 160x128 aspect ratio
 EDGE_BUFFER = 5
 FRAME_DELAY = 0.05  # seconds between updates (~20 FPS)
-
-# Physical display dimensions (in millimetres) and the active window we want to occupy.
-DEVICE_WIDTH_MM = 32.0
-DEVICE_HEIGHT_MM = 38.0
-ACTIVE_WIDTH_MM = 24.0
-ACTIVE_HEIGHT_MM = 24.0
 
 def _init_gpio_backend():
     """Load a GPIO backend compatible with the RPi.GPIO API."""
@@ -71,7 +65,7 @@ def initialize_display():
         serial = spi(port=0, device=0, cs_high=True, gpio=noop())
     device = st7735(
         serial,
-        rotate=1,
+        rotate=0,
         width=160,
         height=128,
         h_offset=0,
@@ -90,18 +84,7 @@ def show_text(device, headline: str, subline: str = ""):
 
 
 def run_boids(device):
-    active_width_px = int(round(device.width * ACTIVE_WIDTH_MM / DEVICE_WIDTH_MM))
-    active_height_px = int(round(device.height * ACTIVE_HEIGHT_MM / DEVICE_HEIGHT_MM))
-    active_width_px = max(1, min(device.width, active_width_px))
-    active_height_px = max(1, min(device.height, active_height_px))
-
-    x_offset = (device.width - active_width_px) // 2
-    y_offset = (device.height - active_height_px) // 2
-
-    aspect = active_width_px / active_height_px if active_height_px else 1
-    fig_width = FIGURE_WIDTH_IN
-    fig_height = fig_width / aspect if aspect else FIGURE_WIDTH_IN
-    fig, ax = minimal.create_figure(figsize=(fig_width, fig_height), edge_buffer=EDGE_BUFFER)
+    fig, ax = minimal.create_figure(figsize=FIGSIZE, edge_buffer=EDGE_BUFFER)
     print("[Press CTRL + C to end the script!]")
     try:
         while True:
@@ -111,10 +94,8 @@ def run_boids(device):
                 edge_buffer=EDGE_BUFFER,
                 auto_step=True,
             )
-            content = frame.resize((active_width_px, active_height_px), Image.LANCZOS).convert("RGB")
-            composed = Image.new("RGB", (device.width, device.height), "black")
-            composed.paste(content, (x_offset, y_offset))
-            device.display(composed)
+            frame = frame.resize((device.width, device.height), Image.LANCZOS)
+            device.display(frame.convert("RGB"))
             time.sleep(FRAME_DELAY)
     except KeyboardInterrupt:
         show_text(device, "Stopped", "CTRL + C detected")
