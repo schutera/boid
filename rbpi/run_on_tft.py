@@ -26,9 +26,9 @@ import boid_minimal as minimal  # noqa: E402
 
 FONT_PATH = Path("/home/luma.examples/examples/fonts/ChiKareGo.ttf")
 DEFAULT_FONT = ImageFont.load_default()
-FIGSIZE = (2.0, 1.6)  # approximately matches 160x128 aspect ratio
+FIGSIZE = (2.0, 2.0)  # approximately matches 160x128 aspect ratio
 EDGE_BUFFER = 5
-FRAME_DELAY = 0.05  # seconds between updates (~20 FPS)
+FRAME_DELAY = 0.035  # seconds between updates (~28 FPS)
 
 def _init_gpio_backend():
     """Load a GPIO backend compatible with the RPi.GPIO API."""

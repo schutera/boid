@@ -10,18 +10,18 @@ except ImportError:  # Pillow is optional unless render_frame is used
 
 # Minimal parameters
 width, height, depth = 80, 80, 80
-num_boids = 12
-num_flocks = 2
-visual_range = 35
-speed_limit = 2.2
+num_boids = 28
+num_flocks = 1
+visual_range = 40
+speed_limit = 3.2
 margin = 10
 turn_factor = 1.5
 centering_factor = 0.01
-avoid_factor = 0.04
-matching_factor = 0.04
+avoid_factor = 0.045
+matching_factor = 0.05
 min_distance = 10
-flock_colors = ["#e9c46a", "#e76f51"]  # Extended color list
-# flock_colors = ["#00c3ff", "#ffffff", "#264653", "#2a9d8f", "#e9c46a", "#f4a261", "#e76f51"]  # Extended color list
+flock_colors = ["#ffffff", "#00c3ff", "#264653", "#2a9d8f", "#e9c46a", "#f4a261", "#e76f51"]  # Extended color list
+jitter_strength = 0.35
 
 
 
@@ -34,7 +34,6 @@ class Boid:
         self.dy = np.random.rand() * 8 - 4
         self.dz = np.random.rand() * 8 - 4
         self.flock = flock
-        self.history = []
 
     def position(self):
         return np.array([self.x, self.y, self.z])
@@ -118,14 +117,15 @@ def step_simulation():
         fly_towards_center(boid)
         avoid_others(boid)
         match_velocity(boid)
+        # Introduce a small amount of random drift to keep the flock lively without heavy compute.
+        boid.dx += np.random.uniform(-jitter_strength, jitter_strength)
+        boid.dy += np.random.uniform(-jitter_strength, jitter_strength)
+        boid.dz += np.random.uniform(-jitter_strength, jitter_strength)
         limit_speed(boid)
         keep_within_bounds(boid)
         boid.x += boid.dx
         boid.y += boid.dy
         boid.z += boid.dz
-        boid.history.append((boid.x, boid.y, boid.z))
-        if len(boid.history) > 0:
-            boid.history.pop(0)
 
 def draw_scene(ax, fig=None, edge_buffer=0):
     ax.cla()
@@ -148,11 +148,6 @@ def draw_scene(ax, fig=None, edge_buffer=0):
         color = flock_colors[(flock_id - 1) % len(flock_colors)]
         ax.scatter(xs, ys, zs, color=color, label=f"Flock {flock_id}", s=5)
     # Draw traces for each boid
-    for b in boids:
-        if len(b.history) > 1:
-            h = np.array(b.history)
-            color = flock_colors[(b.flock - 1) % len(flock_colors)]
-            ax.plot(h[:,0], h[:,1], h[:,2], color=color, alpha=0.5, linewidth=1)
 
 
 def animate(frame, ax, fig):
