@@ -10,7 +10,7 @@ except ImportError:  # Pillow is optional unless render_frame is used
 
 # Minimal parameters
 width, height, depth = 80, 80, 80
-num_boids = 18
+num_boids = 10
 num_flocks = 2
 visual_range = 36  # Slightly increased to encourage more interaction
 speed_limit = 4.0  # Allow faster movement
@@ -20,7 +20,7 @@ centering_factor = 0.02  # Stronger pull towards center
 avoid_factor = 0.12  # Stronger avoidance
 matching_factor = 0.12  # More velocity matching
 min_distance = 10  # Slightly reduced to allow closer flying
-flock_colors = ["#00c3ff", "#ffffff", "#264653", "#2a9d8f", "#e9c46a", "#f4a261", "#e76f51"]
+flock_colors = ["#e76f51", "#2a9d8f", "#ffffff", "#264653", "#e9c46a", "#f4a261"]
 jitter_strength = 0.5  # More random movement for liveliness
 
 
@@ -143,17 +143,21 @@ def draw_scene(ax, fig=None, edge_buffer=0):
     ax.set_zticks([])
     ax.set_axis_off()
 
-    # Draw each flock with depth-scaled sizes (cheap: just use y as depth)
+    # Draw each flock with depth-scaled size and color
+    from matplotlib.colors import to_rgb
     for flock_id in range(1, num_flocks + 1):
-        color = flock_colors[(flock_id - 1) % len(flock_colors)]
+        base_rgb = np.array(to_rgb(flock_colors[(flock_id - 1) % len(flock_colors)]))
         fb = [b for b in boids if b.flock == flock_id]
         xs = [b.x for b in fb]
         ys = [b.y for b in fb]
         zs = [b.z for b in fb]
-        # Use y position as a simple depth proxy (default 3D view looks along y)
-        # near (y=0) → large, far (y=depth) → small
-        s = [3 + (1 - b.y / depth) * 25 for b in fb]
-        ax.scatter(xs, ys, zs, color=color, s=s, depthshade=False)
+        # near (y=0) → large+bright, far (y=depth) → small+gray
+        t = [1 - b.y / depth for b in fb]  # 1=near, 0=far
+        s = [3 + ti * 25 for ti in t]
+        # Blend toward gray (0.3, 0.3, 0.3) for far boids, full color for near
+        gray = np.array([0.3, 0.3, 0.3])
+        colors = [gray + ti * (base_rgb - gray) for ti in t]
+        ax.scatter(xs, ys, zs, color=colors, s=s, depthshade=False)
 
 
 def animate(frame, ax, fig):
