@@ -11,7 +11,7 @@ except ImportError:  # Pillow is optional unless render_frame is used
 # Minimal parameters
 width, height, depth = 80, 80, 80
 num_boids = 18
-num_flocks = 1
+num_flocks = 2
 visual_range = 36  # Slightly increased to encourage more interaction
 speed_limit = 4.0  # Allow faster movement
 margin = 10
@@ -142,14 +142,32 @@ def draw_scene(ax, fig=None, edge_buffer=0):
     ax.set_yticks([])
     ax.set_zticks([])
     ax.set_axis_off()
-    # Draw each flock with original colors
+
+    # Compute depth-based sizes using the camera projection
+    import matplotlib.colors as mcolors
+    all_positions = np.array([[b.x, b.y, b.z] for b in boids])
+    proj_mat = ax.get_proj()
+    ones = np.ones((len(all_positions), 1))
+    coords_h = np.hstack([all_positions, ones])
+    projected = coords_h @ proj_mat.T
+    z_screen = projected[:, 2]
+    z_min, z_max = z_screen.min(), z_screen.max()
+    if z_max > z_min:
+        z_norm = (z_screen - z_min) / (z_max - z_min)
+    else:
+        z_norm = np.full_like(z_screen, 0.5)
+    # nearest (z_norm=0) → size 18, farthest (z_norm=1) → size 3 (current minimum)
+    sizes = 3 + (1 - z_norm) * 15
+
+    # Draw each flock with depth-scaled sizes
     for flock_id in range(1, num_flocks + 1):
-        xs = [b.x for b in boids if b.flock == flock_id]
-        ys = [b.y for b in boids if b.flock == flock_id]
-        zs = [b.z for b in boids if b.flock == flock_id]
         color = flock_colors[(flock_id - 1) % len(flock_colors)]
-        ax.scatter(xs, ys, zs, color=color, label=f"Flock {flock_id}", s=3)
-    # Draw traces for each boid
+        flock_indices = [i for i, b in enumerate(boids) if b.flock == flock_id]
+        xs = [boids[i].x for i in flock_indices]
+        ys = [boids[i].y for i in flock_indices]
+        zs = [boids[i].z for i in flock_indices]
+        s = [sizes[i] for i in flock_indices]
+        ax.scatter(xs, ys, zs, color=color, s=s, depthshade=False)
 
 
 def animate(frame, ax, fig):
