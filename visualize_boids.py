@@ -17,7 +17,6 @@ from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 from matplotlib.animation import FuncAnimation
 
 from leader_trajectory import LeaderTrajectory
-from dqn_agent import DQNAgent
 
 
 # ---------------------------------------------------------------------------
@@ -172,6 +171,7 @@ def main():
     # DQN agent (optional)
     agent = None
     if use_dqn:
+        from dqn_agent import DQNAgent
         state_dim = 6 * 5 + 1
         action_dim = 7
         agent = DQNAgent(state_dim, action_dim)
