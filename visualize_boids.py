@@ -7,14 +7,31 @@ Usage:
     python visualize_boids.py --checkpoint checkpoints/shared_leader_agent_step200000.pth
     python visualize_boids.py --no-leaders
     python visualize_boids.py --save output.gif --frames 300
+    python3 visualize_boids.py --tft --num-flocks 2 --no-traces   # run on ST7735 TFT
 """
 
 import argparse
 import os
+import sys
+import time
 import numpy as np
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
-from matplotlib.animation import FuncAnimation
+
+# Defer matplotlib import until we know the backend
+_matplotlib_imported = False
+
+def _setup_matplotlib(use_agg=False):
+    global plt, FuncAnimation, _matplotlib_imported
+    if _matplotlib_imported:
+        return
+    import matplotlib
+    if use_agg:
+        matplotlib.use("Agg")
+    import matplotlib.pyplot as _plt
+    from matplotlib.animation import FuncAnimation as _FA
+    from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+    plt = _plt
+    FuncAnimation = _FA
+    _matplotlib_imported = True
 
 from leader_trajectory import LeaderTrajectory
 
@@ -138,6 +155,7 @@ def parse_args():
     p.add_argument("--frames", type=int, default=300, help="Number of frames when saving GIF (default: 300)")
     p.add_argument("--no-traces", action="store_true", help="Disable boid trace trails")
     p.add_argument("--rotate", action="store_true", help="Auto-rotate camera")
+    p.add_argument("--tft", action="store_true", help="Output to ST7735 TFT display (Raspberry Pi)")
     return p.parse_args()
 
 
@@ -310,11 +328,59 @@ def main():
         if args.rotate:
             ax.view_init(elev=25, azim=step[0] * 0.5)
 
-    # Set up figure
-    fig = plt.figure(figsize=(8, 8))
-    ax = fig.add_subplot(111, projection="3d")
+    # Set up matplotlib backend
+    _setup_matplotlib(use_agg=args.tft or args.save)
 
-    if args.save:
+    # Set up figure
+    if args.tft:
+        fig = plt.figure(figsize=(2.0, 1.6))
+    else:
+        fig = plt.figure(figsize=(8, 8))
+    ax = fig.add_subplot(111, projection="3d")
+    ax.set_position([0, 0, 1, 1])
+
+    if args.tft:
+        # --- TFT output mode: render frames via Agg, push to ST7735 ---
+        # Add rbpi/ to path so we can import run_on_tft
+        rbpi_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rbpi")
+        if rbpi_dir not in sys.path:
+            sys.path.insert(0, rbpi_dir)
+        from run_on_tft import initialize_display, show_text
+        from PIL import Image
+
+        device, gpio_backend = initialize_display()
+        show_text(device, "Boids!", f"{args.num_flocks} flocks")
+        time.sleep(1.0)
+
+        print("[Press CTRL+C to stop]")
+        try:
+            while True:
+                animate(step[0], ax, fig)
+                fig.canvas.draw()
+                w, h = fig.canvas.get_width_height()
+                try:
+                    raw = fig.canvas.tostring_rgb()
+                    frame = Image.frombytes("RGB", (w, h), raw)
+                except AttributeError:
+                    rgba = fig.canvas.buffer_rgba()
+                    frame = Image.frombuffer("RGBA", (w, h), rgba, "raw", "RGBA", 0, 1).convert("RGB")
+                frame = frame.resize((device.width, device.height), Image.LANCZOS)
+                device.display(frame)
+                time.sleep(0.035)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            try:
+                device.clear()
+                device.show()
+            except Exception:
+                pass
+            if gpio_backend is not None:
+                try:
+                    gpio_backend.cleanup()
+                except Exception:
+                    pass
+    elif args.save:
         from matplotlib.animation import PillowWriter
         _ani = FuncAnimation(fig, lambda f: animate(f, ax, fig), frames=args.frames, interval=33, cache_frame_data=False)
         save_dir = os.path.dirname(args.save)
@@ -326,7 +392,7 @@ def main():
         _ani = FuncAnimation(fig, lambda f: animate(f, ax, fig), interval=33, cache_frame_data=False)
         plt.show()
 
-    return _ani  # prevent garbage collection
+    return locals().get("_ani")  # prevent garbage collection
 
 
 if __name__ == "__main__":

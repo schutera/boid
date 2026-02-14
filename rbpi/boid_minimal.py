@@ -20,7 +20,7 @@ centering_factor = 0.02  # Stronger pull towards center
 avoid_factor = 0.12  # Stronger avoidance
 matching_factor = 0.12  # More velocity matching
 min_distance = 10  # Slightly reduced to allow closer flying
-flock_colors = ["#ffffff", "#00c3ff", "#264653", "#2a9d8f", "#e9c46a", "#f4a261", "#e76f51"]
+flock_colors = ["#00c3ff", "#ffffff", "#264653", "#2a9d8f", "#e9c46a", "#f4a261", "#e76f51"]
 jitter_strength = 0.5  # More random movement for liveliness
 
 
@@ -143,30 +143,16 @@ def draw_scene(ax, fig=None, edge_buffer=0):
     ax.set_zticks([])
     ax.set_axis_off()
 
-    # Compute depth-based sizes using the camera projection
-    import matplotlib.colors as mcolors
-    all_positions = np.array([[b.x, b.y, b.z] for b in boids])
-    proj_mat = ax.get_proj()
-    ones = np.ones((len(all_positions), 1))
-    coords_h = np.hstack([all_positions, ones])
-    projected = coords_h @ proj_mat.T
-    z_screen = projected[:, 2]
-    z_min, z_max = z_screen.min(), z_screen.max()
-    if z_max > z_min:
-        z_norm = (z_screen - z_min) / (z_max - z_min)
-    else:
-        z_norm = np.full_like(z_screen, 0.5)
-    # nearest (z_norm=0) → size 18, farthest (z_norm=1) → size 3 (current minimum)
-    sizes = 3 + (1 - z_norm) * 15
-
-    # Draw each flock with depth-scaled sizes
+    # Draw each flock with depth-scaled sizes (cheap: just use y as depth)
     for flock_id in range(1, num_flocks + 1):
         color = flock_colors[(flock_id - 1) % len(flock_colors)]
-        flock_indices = [i for i, b in enumerate(boids) if b.flock == flock_id]
-        xs = [boids[i].x for i in flock_indices]
-        ys = [boids[i].y for i in flock_indices]
-        zs = [boids[i].z for i in flock_indices]
-        s = [sizes[i] for i in flock_indices]
+        fb = [b for b in boids if b.flock == flock_id]
+        xs = [b.x for b in fb]
+        ys = [b.y for b in fb]
+        zs = [b.z for b in fb]
+        # Use y position as a simple depth proxy (default 3D view looks along y)
+        # near (y=0) → large, far (y=depth) → small
+        s = [3 + (1 - b.y / depth) * 25 for b in fb]
         ax.scatter(xs, ys, zs, color=color, s=s, depthshade=False)
 
 

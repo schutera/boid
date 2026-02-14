@@ -57,3 +57,4 @@ coverage.xml
 
 # Git
 .git/
+.claude/
