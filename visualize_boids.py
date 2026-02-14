@@ -316,16 +316,18 @@ def main():
 
     if args.save:
         from matplotlib.animation import PillowWriter
-        ani = FuncAnimation(fig, lambda f: animate(f, ax, fig), frames=args.frames, interval=33, cache_frame_data=False)
+        _ani = FuncAnimation(fig, lambda f: animate(f, ax, fig), frames=args.frames, interval=33, cache_frame_data=False)
         save_dir = os.path.dirname(args.save)
         if save_dir and not os.path.exists(save_dir):
             os.makedirs(save_dir)
-        ani.save(args.save, writer=PillowWriter(fps=30))
+        _ani.save(args.save, writer=PillowWriter(fps=30))
         print(f"Saved {args.frames}-frame GIF to {args.save}")
     else:
-        ani = FuncAnimation(fig, lambda f: animate(f, ax, fig), interval=33, cache_frame_data=False)
+        _ani = FuncAnimation(fig, lambda f: animate(f, ax, fig), interval=33, cache_frame_data=False)
         plt.show()
+
+    return _ani  # prevent garbage collection
 
 
 if __name__ == "__main__":
-    main()
+    _keep = main()
